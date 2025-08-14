@@ -41,16 +41,16 @@ def register(
     try:
         validate_email(email)
     except EmailNotValidError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        return {"IsSucces": False, "message":str(e)}
 
     if register_type not in ["manual_login", "social_login"]:
-        raise HTTPException(status_code=400, detail="Invalid register_type.")
+        return {"IsSucces": False, "message": "Invalid register_type."}
 
     if register_type == "manual_login" and not password:
-        raise HTTPException(status_code=400, detail="Password required for manual login.")
+        return  {"IsSucces": False, "message": "Password required for manual login."}
 
     if db.query(User).filter(User.email == email).first():
-        raise HTTPException(status_code=400, detail="Email already registered.")
+        return {"IsSucces": False, "message": "Email already registered."}
 
     hashed_password = None
     if register_type == "manual_login":
@@ -206,3 +206,4 @@ def refresh_token(payload: TokenRefreshRequest):
     email = decoded.get("sub")
     new_access_token = create_access_token({"sub": email})
     return {"access_token": new_access_token, "token_type": "bearer"}
+
