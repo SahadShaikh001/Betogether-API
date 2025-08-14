@@ -29,7 +29,8 @@ class User(Base):
     mobile = Column(String, nullable=False)
     hashed_password = Column(String, nullable=True)  # Nullable for Google signup
     profile_image = Column(String, nullable=True)
-    register_type = Column(String, nullable=False, default="manual_login")  # manual_login or social_login
+     register_type = Column(String, nullable=False, default="manual")  # manual or google_auth
+    login_type = Column(String, nullable=False, default="manual")  # manual or google_auth
     otp_code = Column(String(4), nullable=True)  # 4-digit OTP
     otp_expiry = Column(DateTime, nullable=True)  # OTP expiry
     otp_verified = Column(Boolean, default=False)
@@ -71,3 +72,4 @@ class Language(Base):
     name = Column(String, nullable=False)
 
     users = relationship("User", secondary=user_languages, back_populates="languages")
+
