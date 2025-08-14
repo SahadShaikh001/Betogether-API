@@ -9,14 +9,14 @@ class UserCreate(BaseModel):
     mobile: str
     password: str
     profile_image: Optional[str] = None
-    register_type: str  # manual_login / social_login
+    register_type: str  # manual / google_auth
     uid: Optional[str] = None  # Google UID (optional)
 
 # ---------- Login ----------
 class UserLogin(BaseModel):
     email: EmailStr
     password: Optional[str] = None  # Optional for social login
-    register_type: str #manual login /social login 
+    login_type: str # manual/google_auth 
     uid:Optional[str] = None #google uid (optional)
 
 
@@ -133,4 +133,5 @@ class TokenRefreshRequest(BaseModel):
 class UserLocation(BaseModel):
     latitude: float
     longitude: float
+
     radius_km: Optional[float] = None  # optional filtering
