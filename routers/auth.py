@@ -139,16 +139,16 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
 def verify_otp(payload: OTPVerifyRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == payload.email).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        return{"IsSucces": False, "message":"User not found"}
 
     if not user.otp_code or not user.otp_expiry:
-        raise HTTPException(status_code=400, detail="No OTP generated")
+        return{"IsSucces": False, "message":"No OTP generated"}
 
     if datetime.utcnow() > user.otp_expiry:
-        raise HTTPException(status_code=400, detail="OTP expired")
+        return{"IsSucces": False, "message":"OTP expired"}
 
     if user.otp_code != payload.otp:
-        raise HTTPException(status_code=400, detail="Invalid OTP")
+        return{"IsSucces": False,"message":"Invalid OTP"}
 
     user.otp_verified = True
     user.otp_code = None
@@ -183,10 +183,10 @@ def verify_otp(payload: OTPVerifyRequest, db: Session = Depends(get_db)):
 def reset_otp(payload: OTPRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == payload.email).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        return{"IsSucces": False, "message":"User not found"}
 
     if user.register_type != "manual_login":
-        raise HTTPException(status_code=400, detail="OTP not required for social login")
+        return{"IsSucces": False, "message":"OTP not required for social login"}
 
     otp_code, otp_expiry = generate_otp()
     user.otp_code = otp_code
@@ -202,8 +202,9 @@ def reset_otp(payload: OTPRequest, db: Session = Depends(get_db)):
 def refresh_token(payload: TokenRefreshRequest):
     decoded = decode_token(payload.refresh_token)
     if not decoded:
-        raise HTTPException(status_code=401, detail="Invalid refresh token.")
+        return{"IsSucces": False, "message":"Invalid refresh token."}
     email = decoded.get("sub")
     new_access_token = create_access_token({"sub": email})
     return {"access_token": new_access_token, "token_type": "bearer"}
+
 
