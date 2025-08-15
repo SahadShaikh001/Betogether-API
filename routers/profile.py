@@ -1,7 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from database import get_db
-from database import SessionLocal
+from database import get_db, SessionLocal
 from models import User, Category, Language
 from schemas import UserProfileUpdate, UserProfileResponse, BaseResponse
 from dependencies import get_current_user
@@ -15,30 +14,23 @@ def get_db():
         yield db
     finally:
         db.close()
-        
-# ✅ Helper for OTP check
-def ensure_verified_user(user: User):
-    if user.register_type == "manual_login" and not user.otp_verified:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Please verify your OTP before accessing this feature."
-        )
 
 # -------- Get Current User Profile --------
-@router.get("/me", response_model=UserProfileResponse)
+@router.get("/me")
 def get_my_profile(current_user: User = Depends(get_current_user)):
-    ensure_verified_user(current_user)
-    return current_user
+    return {
+        "IsSuccess": True,
+        "message": "Profile retrieved successfully",
+        "data": current_user
+    }
 
 # -------- Update Profile --------
-@router.put("/update-profile", response_model=BaseResponse)
+@router.put("/update-profile")
 def update_profile(
     payload: UserProfileUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    ensure_verified_user(current_user)
-
     if payload.name:
         current_user.name = payload.name
     if payload.bio:
@@ -61,4 +53,7 @@ def update_profile(
     db.commit()
     db.refresh(current_user)
 
-    return BaseResponse(IsSucces=True, message="Profile updated successfully.")
+    return {
+        "IsSuccess": True,
+        "message": "Profile updated successfully"
+    }
