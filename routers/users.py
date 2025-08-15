@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from database import get_db
-from database import SessionLocal
+from database import get_db, SessionLocal
 from models import User
-from schemas import UserResponse, UserProfileResponse
 from dependencies import get_current_user
 
-router = APIRouter(tags=["Users"])
+router = APIRouter(
+    tags=["Users"],
+    dependencies=[Depends(get_current_user)]  # ✅ Enforce authentication for all routes in this router
+)
 
 # ✅ DB dependency
 def get_db():
@@ -16,33 +17,28 @@ def get_db():
     finally:
         db.close()
 
-# ✅ Helper for OTP check
-def ensure_verified_user(user: User):
-    if user.register_type == "manual_login" and not user.otp_verified:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Please verify your OTP before accessing this feature."
-        )
-
 # -------- Get All Users --------
-@router.get("/users", response_model=list[UserResponse])
-def get_all_users(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    ensure_verified_user(current_user)
-    return db.query(User).all()
+@router.get("/users")
+def get_all_users(db: Session = Depends(get_db)):
+    users = db.query(User).all()
+    return {
+        "isSuccess": True,
+        "message": "User list retrieved successfully",
+        "data": users
+    }
 
 # -------- Get User By ID --------
-@router.get("users/{user_id}", response_model=UserResponse)
-def get_user_by_id(
-    user_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    ensure_verified_user(current_user)
-
-    user = db.query(User).filter(User.id == user_id).first()
+@router.get("/users/{id}")
+def get_user_by_id(id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
+        return {
+            "isSuccess": False,
+            "message": "User not found",
+            "data": None
+        }
+    return {
+        "isSuccess": True,
+        "message": "User fetched successfully",
+        "data": user
+    }
