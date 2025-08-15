@@ -1,14 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import Category, User
 from database import get_db
 from schemas import CategoryOut, UserLocation
-from dependencies import get_current_user  # token validation
+from dependencies import get_current_user  # ✅ Token validation
 import math
 
-router = APIRouter(tags=["Category"])
+router = APIRouter(
+    tags=["Category"],
+    dependencies=[Depends(get_current_user)]  # ✅ Enforce authentication for all routes
+)
 
+# ✅ DB dependency
 def get_db():
     db = SessionLocal()
     try:
@@ -16,14 +20,7 @@ def get_db():
     finally:
         db.close()
 
-# ✅ Helper for OTP check
-def ensure_verified_user(user: User):
-    if user.register_type == "manual_login" and not user.otp_verified:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Please verify your OTP before accessing this feature."
-        )
-    
+# ✅ Haversine formula for distance calculation
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371  # km
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
@@ -33,45 +30,34 @@ def haversine(lat1, lon1, lat2, lon2):
     return R * (2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))
 
 # -------- Get All Categories --------
-@router.get("/category", response_model=list[CategoryOut])
-def get_all_categories(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    ensure_verified_user(current_user)
-    return db.query(Category).all()
+@router.get("/category")
+def get_all_categories(db: Session = Depends(get_db)):
+    categories = db.query(Category).all()
+    return {
+        "IsSuccess": True,
+        "message": "Categories retrieved successfully" if categories else "No categories found",
+        "data": categories
+    }
 
 # -------- Get Category by ID or Name --------
-@router.get("/category/{identifier}", response_model=CategoryOut)
-def get_category(
-    identifier: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    ensure_verified_user(current_user)
-
-    # Try ID lookup first
-    category = None
+@router.get("/category/{identifier}")
+def get_category(identifier: str, db: Session = Depends(get_db)):
     if identifier.isdigit():
         category = db.query(Category).filter(Category.id == int(identifier)).first()
     else:
         category = db.query(Category).filter(Category.name.ilike(identifier)).first()
 
     if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
+        return {"IsSuccess": False, "message": "Category not found"}
 
-    return category
+    return {"IsSuccess": True, "message": "Category retrieved successfully", "data": category}
 
- # ✅ 3. post category with category AND LIST OF it
+# -------- Post: Find Nearest Category --------
 @router.post("/category/nearest")
-def assign_nearest_category(
-    location: UserLocation,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
+def assign_nearest_category(location: UserLocation, db: Session = Depends(get_db)):
     categories = db.query(Category).all()
     if not categories:
-        raise HTTPException(status_code=404, detail={"IsSuccess": False, "message": "No categories found"})
+        return {"IsSuccess": False, "message": "No categories found"}
 
     nearby = []
     for cat in categories:
@@ -98,4 +84,3 @@ def assign_nearest_category(
         "data": nearest,
         "list": nearby
     }
-
