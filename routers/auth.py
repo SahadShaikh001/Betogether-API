@@ -86,7 +86,49 @@ def register(
     db.refresh(new_user)
 
     return {"IsSucces": True, "message": "OTP sent. Please verify." if register_type == "manual" else "Registered successfully."}
+# ------------------ VERIFY OTP registration------------------
+@router.post("/verify-otp-reg")
+def verify_otp(payload: OTPVerifyRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user:
+        return{"IsSucces": False, "message":"User not found"}
 
+    if not user.otp_code or not user.otp_expiry:
+        return{"IsSucces": False, "message":"No OTP generated"}
+
+    if datetime.utcnow() > user.otp_expiry:
+        return{"IsSucces": False, "message":"OTP expired"}
+
+    if user.otp_code != payload.otp:
+        return{"IsSucces": False,"message":"Invalid OTP"}
+
+    user.otp_verified = True
+    user.otp_code = None
+    user.otp_expiry = None
+    access_token = create_access_token({"sub": user.email})
+    refresh_token = create_refresh_token({"sub": user.email})
+    user.access_token = access_token
+    user.refresh_token = refresh_token
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "IsSucces": True,
+        "message": "Success",
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "uid": user.uid,
+            "name": user.name,
+            "email": user.email,
+            "mobile": user.mobile,
+            "profile_image": user.profile_image,
+            "register_type": user.register_type,
+            "otp_verified": user.otp_verified
+        }
+    }
 # ------------------ LOGIN ------------------
 @router.post("/login")
 def login(user_data: UserLogin, db: Session = Depends(get_db)):
@@ -133,51 +175,6 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
                 "otp_verified": user.otp_verified,
             }
         }
-
-# ------------------ VERIFY OTP registration------------------
-@router.post("/verify-otp-reg")
-def verify_otp(payload: OTPVerifyRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
-    if not user:
-        return{"IsSucces": False, "message":"User not found"}
-
-    if not user.otp_code or not user.otp_expiry:
-        return{"IsSucces": False, "message":"No OTP generated"}
-
-    if datetime.utcnow() > user.otp_expiry:
-        return{"IsSucces": False, "message":"OTP expired"}
-
-    if user.otp_code != payload.otp:
-        return{"IsSucces": False,"message":"Invalid OTP"}
-
-    user.otp_verified = True
-    user.otp_code = None
-    user.otp_expiry = None
-    access_token = create_access_token({"sub": user.email})
-    refresh_token = create_refresh_token({"sub": user.email})
-    user.access_token = access_token
-    user.refresh_token = refresh_token
-    db.commit()
-    db.refresh(user)
-
-    return {
-        "IsSucces": True,
-        "message": "Success",
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "user": {
-            "id": user.id,
-            "uid": user.uid,
-            "name": user.name,
-            "email": user.email,
-            "mobile": user.mobile,
-            "profile_image": user.profile_image,
-            "register_type": user.register_type,
-            "otp_verified": user.otp_verified
-        }
-    }
-
 
 # ------------------ VERIFY OTP login------------------
 @router.post("/verify-otp-login")
@@ -250,4 +247,3 @@ def refresh_token(payload: TokenRefreshRequest):
     email = decoded.get("sub")
     new_access_token = create_access_token({"sub": email})
     return {"access_token": new_access_token, "token_type": "bearer"}
-
