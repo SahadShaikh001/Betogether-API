@@ -15,7 +15,7 @@ class UserCreate(BaseModel):
 # ---------- Login ----------
 class UserLogin(BaseModel):
     email: EmailStr
-    password: Optional[str] = None  # Optional for social login
+    password: str = None  # Optional for google_auth
     login_type: str # manual/google_auth 
     uid:Optional[str] = None #google uid (optional)
 
@@ -133,5 +133,4 @@ class TokenRefreshRequest(BaseModel):
 class UserLocation(BaseModel):
     latitude: float
     longitude: float
-
     radius_km: Optional[float] = None  # optional filtering
