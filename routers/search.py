@@ -1,14 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from database import SessionLocal
-from database import get_db
 from models import User, Category
 from schemas import UserResponse, CategoryOut
-from dependencies import get_current_user
+from dependencies import get_current_user  # ✅ Token validation
 
-router = APIRouter(tags=["Search"])
+router = APIRouter(
+    tags=["Search"],
+    dependencies=[Depends(get_current_user)]  # ✅ All search routes require auth
+)
 
-# Dependency to get DB session
+# ✅ DB dependency
 def get_db():
     db = SessionLocal()
     try:
@@ -16,49 +18,47 @@ def get_db():
     finally:
         db.close()
 
-# ✅ Helper for OTP check
-def ensure_verified_user(user: User):
-    if user.register_type == "manual_login" and not user.otp_verified:
-        raise HTTPException(
-            status_code=403,
-            detail="Please verify your OTP before accessing this feature."
-        )
-
 # -------- Search Categories --------
-@router.get("/search/categories", response_model=list[CategoryOut])
+@router.get("/search/categories")
 def search_categories(
     q: str = Query(..., description="Search term for category name"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    ensure_verified_user(current_user)
-    return db.query(Category).filter(Category.name.ilike(f"%{q}%")).all()
+    results = db.query(Category).filter(Category.name.ilike(f"%{q}%")).all()
+    return {
+        "IsSuccess": True,
+        "message": f"Found {len(results)} categories" if results else "No categories found",
+        "data": results
+    }
 
 # -------- Search Users --------
-@router.get("/search/users", response_model=list[UserResponse])
+@router.get("/search/users")
 def search_users(
     q: str = Query(..., description="Search term for user name or email"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    ensure_verified_user(current_user)
-    return db.query(User).filter(
+    results = db.query(User).filter(
         (User.name.ilike(f"%{q}%")) | (User.email.ilike(f"%{q}%"))
     ).all()
+    return {
+        "IsSuccess": True,
+        "message": f"Found {len(results)} users" if results else "No users found",
+        "data": results
+    }
 
 # -------- Search Both --------
 @router.get("/search/all")
 def search_all(
     q: str = Query(..., description="Search term for categories and users"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
-    ensure_verified_user(current_user)
     categories = db.query(Category).filter(Category.name.ilike(f"%{q}%")).all()
     users = db.query(User).filter(
         (User.name.ilike(f"%{q}%")) | (User.email.ilike(f"%{q}%"))
     ).all()
     return {
+        "IsSuccess": True,
+        "message": "Search completed",
         "categories": categories,
         "users": users
     }
