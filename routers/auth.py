@@ -114,7 +114,7 @@ def verify_otp(payload: OTPVerifyRequest, db: Session = Depends(get_db)):
 
     return {
         "IsSucces": True,
-        "message": "Success",
+        "message": "Registration Successfully.",
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
@@ -138,7 +138,7 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
 
     if user_data.login_type == "manual":
         if not user.hashed_password or not user_data.password:
-            return {"IsSucces": False, "message": "Password required."}
+            return {"IsSucces": False, "message": "User not found,check email & Password ."}
         if not pwd_context.verify(user_data.password, user.hashed_password):
             return {"IsSucces": False, "message": "User not found,check email & password."}
 
@@ -204,7 +204,7 @@ def verify_otp(payload: OTPVerifyRequest, db: Session = Depends(get_db)):
 
     return {
         "IsSucces": True,
-        "message": "Success",
+        "message": "Login Successfully.",
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
@@ -247,3 +247,4 @@ def refresh_token(payload: TokenRefreshRequest):
     email = decoded.get("sub")
     new_access_token = create_access_token({"sub": email})
     return {"access_token": new_access_token, "token_type": "bearer"}
+
